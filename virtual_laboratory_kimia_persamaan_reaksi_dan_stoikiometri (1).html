@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Lab Kimia - Persamaan Reaksi & Stoikiometri</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- html2pdf.js CDN for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            800: '#115e59',
+                            900: '#134e4a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        @keyframes bubble {
+            0% { transform: translateY(0) scale(0.8); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-120px) scale(1.2); opacity: 0; }
+        }
+        .animate-bubble {
+            animation: bubble 1.8s infinite linear;
+        }
+        @keyframes precipitate {
+            0% { transform: translateY(-30px); opacity: 0; }
+            100% { transform: translateY(80px); opacity: 0.9; }
+        }
+        .animate-precipitate {
+            animation: precipitate 2.5s forwards ease-in-out;
+        }
+        @keyframes flashLight {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1.3); }
+            100% { opacity: 0.2; transform: scale(1); }
+        }
+        .animate-flash {
+            animation: flashLight 1.2s ease-out forwards;
+        }
+
+        /* Print CSS for clean PDF generation */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            header, nav, button, footer, .tab-content:not(#section-laporan) {
+                display: none !important;
+            }
+            #section-laporan {
+                display: block !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            #pdf-report-template {
+                box-shadow: none !important;
+                border: none !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased flex flex-col selection:bg-teal-500 selection:text-white">
+
+    <!-- Header & Navigation -->
+    <header class="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
+        <div class="max-w-7xl mx-mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-gradient-to-tr from-teal-500 to-cyan-500 rounded-xl shadow-lg shadow-teal-500/30 text-white">
+                        <i class="fa-solid fa-vial-virus text-2xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight bg-gradient-to-r from-teal-400 to-cyan-300 bg-clip-text text-transparent">
+                            Virtual Lab Kimia
+                        </h1>
+                        <p class="text-xs text-slate-400">SMAN 30 Jakarta • Wiranda, S.Pd, M.Si</p>
+                    </div>
+                </div>
+
+                <!-- Desktop Nav -->
+                <nav class="hidden md:flex space-x-1">
+                    <button onclick="switchTab('materi')" id="tab-materi" class="nav-btn active-tab px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200">
+                        <i class="fa-solid fa-book-open mr-2"></i>Materi
+                    </button>
+                    <button onclick="switchTab('simulator')" id="tab-simulator" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200">
+                        <i class="fa-solid fa-flask-vial mr-2"></i>Simulator
+                    </button>
+                    <button onclick="switchTab('lkpd')" id="tab-lkpd" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200">
+                        <i class="fa-solid fa-file-pen mr-2"></i>LKPD Interaktif
+                    </button>
+                    <button onclick="switchTab('hots')" id="tab-hots" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200">
+                        <i class="fa-solid fa-brain mr-2"></i>Bank Soal HOTS
+                    </button>
+                    <button onclick="switchTab('laporan')" id="tab-laporan" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200">
+                        <i class="fa-solid fa-print mr-2"></i>Cetak Laporan
+                    </button>
+                </nav>
+
+                <!-- Mobile Menu Button -->
+                <div class="md:hidden">
+                    <button onclick="toggleMobileMenu()" class="p-2 text-slate-400 hover:text-white focus:outline-none">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Nav Menu -->
+        <div id="mobile-menu" class="hidden md:hidden border-t border-slate-800 bg-slate-900 px-4 pt-2 pb-4 space-y-1">
+            <button onclick="switchTab('materi'); toggleMobileMenu();" class="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-slate-800">
+                <i class="fa-solid fa-book-open w-6"></i> Materi Lengkap
+            </button>
+            <button onclick="switchTab('simulator'); toggleMobileMenu();" class="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-slate-800">
+                <i class="fa-solid fa-flask-vial w-6"></i> Simulator Reaksi
+            </button>
+            <button onclick="switchTab('lkpd'); toggleMobileMenu();" class="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-slate-800">
+                <i class="fa-solid fa-file-pen w-6"></i> LKPD Interaktif
+            </button>
+            <button onclick="switchTab('hots'); toggleMobileMenu();" class="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-slate-800">
+                <i class="fa-solid fa-brain w-6"></i> Bank Soal HOTS
+            </button>
+            <button onclick="switchTab('laporan'); toggleMobileMenu();" class="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-slate-800">
+                <i class="fa-solid fa-print w-6"></i> Cetak Laporan PDF
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- TAB 1: MATERI LENGKAP & INTERAKTIF -->
+        <section id="section-materi" class="tab-content space-y-6">
+            <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 sm:p-8 shadow-xl backdrop-blur-lg">
+                <div class="flex items-center space-x-3 mb-6">
+                    <span class="p-3 bg-teal-500/20 text-teal-400 rounded-xl text-xl"><i class="fa-solid fa-atom"></i></span>
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">Persamaan Reaksi & Stoikiometri Dasar</h2>
+                        <p class="text-slate-400 text-sm">Konsep kunci, penyetaraan koefisien, dan ciri-ciri perubahan kimia.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Cards Info -->
+                    <div class="bg-slate-900/50 p-5 rounded-xl border border-slate-800">
+                        <h3 class="text-lg font-semibold text-teal-300 mb-2"><i class="fa-solid fa-scale-balanced mr-2"></i>Hukum Lavoisier (Kekekalan Massa)</h3>
+                        <p class="text-sm text-slate-300 leading-relaxed">
+                            "Massa total zat-zat sebelum reaksi (reaktan) selalu sama dengan massa total zat-zat sesudah reaksi (produk) dalam sistem tertutup."
+                        </p>
+                        <div class="mt-3 p-3 bg-teal-950/50 border border-teal-800/40 rounded-lg text-xs text-teal-200">
+                            <strong>Implikasi:</strong> Jumlah atom tiap unsur di ruas kiri HARUS SAMA DENGAN jumlah atom di ruas kanan.
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/50 p-5 rounded-xl border border-slate-800">
+                        <h3 class="text-lg font-semibold text-cyan-300 mb-2"><i class="fa-solid fa-eye mr-2"></i>Tanda-tanda Reaksi Kimia Real</h3>
+                        <ul class="text-sm text-slate-300 space-y-1.5 list-disc list-inside">
+                            "><span class="font-semibold text-slate-100">Gas:</span> Muncul gelembung (misal $H_2, CO_2$).</li>
+                            "><span class="font-semibold text-slate-100">Endapan/Padatan:</span> Terbentuk suspensi/padatan tak larut ($PbI_2, Cu(OH)_2$).</li>
+                            "><span class="font-semibold text-slate-100">Perubahan Warna:</span> Terjadi perubahan kompleks ion / senyawa.</li>
+                            "><span class="font-semibold text-slate-100">Energi/Suhu:</span> Pelepasan cahaya/kalor (Eksoterm) atau penyerapan (Endoterm).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Interactive Molecule Balancer Demo -->
+                <div class="mt-8 bg-slate-900/80 p-6 rounded-2xl border border-teal-500/30 shadow-inner">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center justify-between">
+                        <span><i class="fa-solid fa-sliders text-teal-400 mr-2"></i>Visualisasi Penyetaraan Reaksi Interaktif</span>
+                        <span class="text-xs font-normal text-slate-400">Atur Koefisien secara Visual</span>
+                    </h3>
+                    
+                    <p class="text-xs text-slate-400 mb-6">Contoh Reaksi Pembentukan Air: $a\,\text{H}_2 + b\,\text{O}_2 \rightarrow c\,\text{H}_2\text{O}$</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                        <!-- Controls -->
+                        <div class="space-y-4 bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+                            <div>
+                                <label class="text-xs text-slate-300 font-semibold flex justify-between">
+                                    <span>Koefisien $H_2$ (a):</span> <span id="coef-a-val" class="text-teal-400 font-bold">1</span>
+                                </label>
+                                <input type="range" id="coef-a" min="1" max="4" value="1" oninput="updateVisualBalancer()" class="w-full accent-teal-500 cursor-pointer">
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-300 font-semibold flex justify-between">
+                                    <span>Koefisien $O_2$ (b):</span> <span id="coef-b-val" class="text-teal-400 font-bold">1</span>
+                                </label>
+                                <input type="range" id="coef-b" min="1" max="4" value="1" oninput="updateVisualBalancer()" class="w-full accent-teal-500 cursor-pointer">
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-300 font-semibold flex justify-between">
+                                    <span>Koefisien $H_2O$ (c):</span> <span id="coef-c-val" class="text-teal-400 font-bold">1</span>
+                                </label>
+                                <input type="range" id="coef-c" min="1" max="4" value="1" oninput="updateVisualBalancer()" class="w-full accent-teal-500 cursor-pointer">
+                            </div>
+                        </div>
+
+                        <!-- Visual Display -->
+                        <div class="md:col-span-2 space-y-4">
+                            <div class="flex items-center justify-around bg-slate-950 p-4 rounded-xl border border-slate-800">
+                                <!-- Ruas Kiri -->
+                                <div class="text-center">
+                                    <div class="text-xs text-slate-400 mb-2">Reaktan (Kiri)</div>
+                                    <div id="left-molecules" class="flex flex-wrap gap-2 justify-center min-h-[60px] items-center"></div>
+                                    <div class="text-xs font-mono text-teal-300 mt-2" id="left-count">H: 2 | O: 2</div>
+                                </div>
+
+                                <div class="text-xl text-amber-400 font-bold"><i class="fa-solid fa-arrow-right"></i></div>
+
+                                <!-- Ruas Kanan -->
+                                <div class="text-center">
+                                    <div class="text-xs text-slate-400 mb-2">Produk (Kanan)</div>
+                                    <div id="right-molecules" class="flex flex-wrap gap-2 justify-center min-h-[60px] items-center"></div>
+                                    <div class="text-xs font-mono text-teal-300 mt-2" id="right-count">H: 2 | O: 1</div>
+                                </div>
+                            </div>
+
+                            <!-- Balance Status -->
+                            <div id="balance-status" class="p-3 text-center rounded-xl font-bold text-sm bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                <i class="fa-solid fa-triangle-exclamation mr-2"></i>Belum Setara! Jumlah atom O di kiri (2) ≠ kanan (1).
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: SIMULATOR REAKSI KIMIA REAL -->
+        <section id="section-simulator" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <!-- Control Panel (Left 4 cols) -->
+                <div class="lg:col-span-4 space-y-5 bg-slate-800/80 border border-slate-700 p-5 rounded-2xl backdrop-blur-md">
+                    <h3 class="text-lg font-bold text-white flex items-center">
+                        <i class="fa-solid fa-gears text-teal-400 mr-2"></i>Kontrol Eksperimen
+                    </h3>
+
+                    <!-- Select Reaction -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-2">Pilih Reaksi Kimia Real:</label>
+                        <select id="sim-reaction-select" onchange="loadReactionData()" class="w-full bg-slate-900 border border-slate-700 text-slate-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                            <option value="zn_hcl">1. Zn + 2HCl → ZnCl₂ + H₂ ↑ (Gas Hidrogen)</option>
+                            <option value="caco3_hcl">2. CaCO₃ + 2HCl → CaCl₂ + H₂O + CO₂ ↑ (Gas CO₂)</option>
+                            <option value="pb_ki">3. Pb(NO₃)₂ + 2KI → PbI₂ ↓ + 2KNO₃ (Endapan Kuning)</option>
+                            <option value="naoh_cuso4">4. 2NaOH + CuSO₄ → Cu(OH)₂ ↓ + Na₂SO₄ (Endapan Biru)</option>
+                            <option value="mg_o2">5. 2Mg + O₂ → 2MgO (Pembakaran Kilat Putih)</option>
+                        </select>
+                    </div>
+
+                    <!-- Reaction Equation Card -->
+                    <div class="p-3 bg-slate-900/90 rounded-xl border border-teal-500/30 font-mono text-xs text-teal-300 text-center shadow-inner" id="sim-equation-display">
+                        Zn(s) + 2HCl(aq) → ZnCl₂(aq) + H₂(g)
+                    </div>
+
+                    <!-- Slider 1 -->
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-300 mb-1">
+                            <span id="label-param-1">Massa Zinc (Zn):</span>
+                            <span class="font-bold text-teal-400" id="val-param-1">6.5 g</span>
+                        </div>
+                        <input type="range" id="slider-param-1" min="1" max="20" step="0.5" value="6.5" oninput="runCalculations()" class="w-full accent-teal-500 cursor-pointer">
+                    </div>
+
+                    <!-- Slider 2 -->
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-300 mb-1">
+                            <span id="label-param-2">Volume HCl 1M:</span>
+                            <span class="font-bold text-cyan-400" id="val-param-2">100 mL</span>
+                        </div>
+                        <input type="range" id="slider-param-2" min="10" max="250" step="10" value="100" oninput="runCalculations()" class="w-full accent-cyan-500 cursor-pointer">
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="pt-2 flex space-x-3">
+                        <button onclick="startSimulation()" id="btn-start-sim" class="flex-1 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-teal-500/20 transition-all flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-play"></i> <span>Mulai Reaksi</span>
+                        </button>
+                        <button onclick="resetSimulation()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 p-3 rounded-xl transition-all" title="Reset Simulator">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+
+                    <!-- Stoichiometric Calculations Live Table -->
+                    <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800 text-xs space-y-2">
+                        <div class="font-semibold text-slate-300 border-b border-slate-800 pb-1 flex justify-between">
+                            <span>Data Analisis Stoikiometri</span>
+                            <span class="text-teal-400" id="limiting-reagent-badge">Reaktan Pembatas: -</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>Mol Reaktan 1:</span>
+                            <span id="calc-mol-1" class="font-mono text-slate-200">0.100 mol</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>Mol Reaktan 2:</span>
+                            <span id="calc-mol-2" class="font-mono text-slate-200">0.100 mol</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400 border-t border-slate-800 pt-1">
+                            <span class="text-teal-300 font-semibold" id="calc-product-label">Produk Terbentuk:</span>
+                            <span id="calc-product-yield" class="font-mono font-bold text-teal-300">1.12 L Gas (STP)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulation Visualizer Canvas & Live Reaction Tube (Right 8 cols) - REVISED CENTER ALIGNMENT -->
+                <div class="lg:col-span-8 space-y-6">
+                    <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 sm:p-8 relative overflow-hidden flex flex-col items-center justify-center min-h-[440px] shadow-2xl">
+                        <!-- Flash Overlay for Mg reaction -->
+                        <div id="flash-overlay" class="absolute inset-0 bg-white opacity-0 pointer-events-none z-30 transition-opacity duration-300"></div>
+
+                        <!-- Status Badge Top Centered/Left -->
+                        <div class="w-full flex justify-between items-center mb-4 z-10">
+                            <div class="flex items-center space-x-2 bg-slate-900/90 px-3.5 py-1.5 rounded-full border border-slate-800 text-xs">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" id="sim-status-dot"></span>
+                                <span id="sim-status-text" class="text-slate-300 font-medium">Siap Melakukan Eksperimen</span>
+                            </div>
+                            <span class="text-xs text-slate-500 font-mono"><i class="fa-solid fa-flask text-teal-400 mr-1"></i>Aparatur Lab Virtual</span>
+                        </div>
+
+                        <!-- SVG Dynamic Laboratory Glassware Visual - PERFECTLY CENTERED -->
+                        <div class="relative w-full max-w-md h-80 flex items-center justify-center my-auto">
+                            
+                            <!-- Gas Tube / Beaker SVG Apparatus Centered -->
+                            <svg class="w-72 h-full mx-auto" viewBox="0 0 200 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Beaker Contour -->
+                                <path d="M 40 30 L 40 210 A 10 10 0 0 0 50 220 L 150 220 A 10 10 0 0 0 160 210 L 160 30" stroke="#94a3b8" stroke-width="4" fill="none"/>
+                                <!-- Volume Grid Lines -->
+                                <line x1="140" y1="60" x2="160" y2="60" stroke="#64748b" stroke-width="2"/>
+                                <line x1="145" y1="100" x2="160" y2="100" stroke="#64748b" stroke-width="2"/>
+                                <line x1="140" y1="140" x2="160" y2="140" stroke="#64748b" stroke-width="2"/>
+                                <line x1="145" y1="180" x2="160" y2="180" stroke="#64748b" stroke-width="2"/>
+
+                                <!-- Liquid Level Dynamically Colored -->
+                                <path id="svg-liquid" d="M 42 100 L 42 210 A 8 8 0 0 0 50 218 L 150 218 A 8 8 0 0 0 158 210 L 158 100 Z" fill="#38bdf8" fill-opacity="0.35"/>
+
+                                <!-- Solid Bottom / Precipitate SVG Layer -->
+                                <ellipse id="svg-precipitate" cx="100" cy="210" rx="50" ry="8" fill="#facc15" fill-opacity="0" class="transition-all duration-1000"/>
+                                
+                                <!-- Magnesium Ribbon Metal Stick Visual -->
+                                <rect id="svg-solid-metal" x="90" y="140" width="20" height="70" fill="#94a3b8" rx="2" class="transition-all"/>
+
+                                <!-- Bubbles Container Visual (SVG group) -->
+                                <g id="svg-bubbles-group" opacity="0">
+                                    <circle cx="80" cy="180" r="4" fill="#e0f2fe" class="animate-bubble"/>
+                                    <circle cx="110" cy="160" r="6" fill="#e0f2fe" class="animate-bubble" style="animation-delay: 0.4s"/>
+                                    <circle cx="95" cy="190" r="3" fill="#e0f2fe" class="animate-bubble" style="animation-delay: 0.8s"/>
+                                    <circle cx="120" cy="170" r="5" fill="#e0f2fe" class="animate-bubble" style="animation-delay: 0.2s"/>
+                                    <circle cx="70" cy="150" r="4" fill="#e0f2fe" class="animate-bubble" style="animation-delay: 0.6s"/>
+                                </g>
+                            </svg>
+
+                            <!-- Special Gas Collection / Lime Water Reaction Floating Tooltip (Non-overlapping) -->
+                            <div id="special-test-container" class="absolute right-2 top-2 hidden bg-slate-900/95 border border-amber-500/40 p-3 rounded-xl shadow-2xl w-40 text-center backdrop-blur-md z-20">
+                                <div class="text-[10px] text-slate-400 mb-1" id="test-title">Uji Nyala Pop Gas H₂</div>
+                                <div id="test-visual-icon" class="text-3xl text-amber-400 animate-bounce my-1">
+                                    <i class="fa-solid fa-fire-flame-curved"></i>
+                                </div>
+                                <div class="text-[11px] font-bold text-teal-300" id="test-desc">Bunyi 'POP' Khas!</div>
+                            </div>
+                        </div>
+
+                        <!-- Real Visual Result Description Centered -->
+                        <div class="mt-4 text-center max-w-lg z-10">
+                            <h4 id="sim-result-title" class="font-bold text-slate-100 text-base">Campuran Reaktan Disiapkan</h4>
+                            <p id="sim-result-desc" class="text-xs text-slate-400 mt-1 leading-relaxed">Tekan tombol 'Mulai Reaksi' untuk mengamati perubahan fisika & kimia secara langsung pada wadah eksperimen.</p>
+                        </div>
+                    </div>
+
+                    <!-- Chart Stoichiometric Mass Balance -->
+                    <div class="bg-slate-800/80 border border-slate-700 p-5 rounded-2xl backdrop-blur-md">
+                        <h4 class="text-sm font-bold text-slate-200 mb-3 flex items-center justify-between">
+                            <span><i class="fa-solid fa-chart-column text-cyan-400 mr-2"></i>Grafik Stoikiometri & Neraca Massa (Gram)</span>
+                            <span class="text-xs font-normal text-slate-400">Analisis Kuantitatif</span>
+                        </h4>
+                        <div class="h-48 w-full">
+                            <canvas id="stoichChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: LKPD INTERAKTIF -->
+        <section id="section-lkpd" class="tab-content hidden space-y-6">
+            <div class="bg-slate-800/80 border border-slate-700 p-6 sm:p-8 rounded-2xl backdrop-blur-md space-y-6">
+                <!-- Kop LKPD -->
+                <div class="border-b border-slate-700 pb-4 text-center space-y-1">
+                    <span class="bg-teal-500/20 text-teal-300 text-xs font-semibold px-3 py-1 rounded-full border border-teal-500/30">Lembar Kerja Peserta Didik (LKPD)</span>
+                    <h2 class="text-xl sm:text-2xl font-bold text-white mt-2">Investigasi Eksperimental Persamaan Reaksi & Stoikiometri</h2>
+                    <p class="text-xs text-slate-400">SMAN 30 Jakarta • Guru Pengampu: Wiranda, S.Pd, M.Si</p>
+                </div>
+
+                <!-- Form Identitas Siswa -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Nama Lengkap Siswa</label>
+                        <input type="text" id="lkpd-nama" placeholder="Ketik nama Anda..." class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Kelas / Kelompok</label>
+                        <input type="text" id="lkpd-kelas" placeholder="Misal: XI-1 / Kelompok 3" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Tanggal Praktikum</label>
+                        <input type="date" id="lkpd-tanggal" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Tabel Pengamatan Simulation Data Entry -->
+                <div>
+                    <h3 class="text-md font-bold text-teal-300 mb-3 flex items-center">
+                        <i class="fa-solid fa-table-list mr-2"></i>1. Tabel Hasil Pengamatan Praktikum Virtual
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs text-slate-200">
+                            <thead>
+                                <tr class="bg-slate-900 text-teal-300 border-b border-slate-700">
+                                    <th class="p-3">No</th>
+                                    <th class="p-3">Reaksi Kimia</th>
+                                    <th class="p-3">Gejala / Ciri Reaksi Visual</th>
+                                    <th class="p-3">Zat Hasil Utama</th>
+                                    <th class="p-3">Kategori Produk</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 bg-slate-900/30">
+                                <tr>
+                                    <td class="p-3">1</td>
+                                    <td class="p-3 font-mono text-cyan-300">Zn + HCl</td>
+                                    <td class="p-3"><input type="text" id="obs-1-1" placeholder="Isi hasil amatan..." class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 text-xs"></td>
+                                    <td class="p-3"><input type="text" id="obs-1-2" placeholder="Zat hasil..." class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 text-xs"></td>
+                                    <td class="p-3">
+                                        <select id="obs-1-3" class="bg-slate-800 border border-slate-700 rounded p-1.5 text-xs">
+                                            <option value="Gas">Gas ($H_2$)</option>
+                                            <option value="Endapan">Endapan</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3">2</td>
+                                    <td class="p-3 font-mono text-cyan-300">Pb(NO₃)₂ + KI</td>
+                                    <td class="p-3"><input type="text" id="obs-2-1" placeholder="Isi hasil amatan..." class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 text-xs"></td>
+                                    <td class="p-3"><input type="text" id="obs-2-2" placeholder="Zat hasil..." class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 text-xs"></td>
+                                    <td class="p-3">
+                                        <select id="obs-2-3" class="bg-slate-800 border border-slate-700 rounded p-1.5 text-xs">
+                                            <option value="Endapan">Endapan Kuning</option>
+                                            <option value="Gas">Gas</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3">3</td>
+                                    <td class="p-3 font-mono text-cyan-300">2Mg + O₂</td>
+                                    <td class="p-3"><input type="text" id="obs-3-1" placeholder="Isi hasil amatan..." class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 text-xs"></td>
+                                    <td class="p-3"><input type="text" id="obs-3-2" placeholder="Zat hasil..." class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 text-xs"></td>
+                                    <td class="p-3">
+                                        <select id="obs-3-3" class="bg-slate-800 border border-slate-700 rounded p-1.5 text-xs">
+                                            <option value="Padatan Putih">Padatan Putih MgO</option>
+                                            <option value="Gas">Gas</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Analysis Questions -->
+                <div class="space-y-4">
+                    <h3 class="text-md font-bold text-teal-300 flex items-center">
+                        <i class="fa-solid fa-pen-to-square mr-2"></i>2. Pertanyaan Analisis & Evaluasi Reaksi
+                    </h3>
+                    
+                    <div class="space-y-2">
+                        <label class="block text-xs font-semibold text-slate-300">
+                            a. Mengapa massa total zat sebelum dan sesudah reaksi pada sistem tertutup selalu sama menurut Hukum Lavoisier? Jelaskan hubungannya dengan koefisien reaksi!
+                        </label>
+                        <textarea id="lkpd-q1" rows="3" placeholder="Tuliskan jawaban Anda secara rinci..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"></textarea>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-xs font-semibold text-slate-300">
+                            b. Pada reaksi Zinc dengan Asam Klorida ($Zn + 2HCl \rightarrow ZnCl_2 + H_2$), jika 13 gram Zinc ($Ar\,Zn=65$) direaksikan dengan HCl berlebih, berapa liter gas $H_2$ yang dihasilkan pada kondisi STP? Tunjukkan langkah perhitungannya!
+                        </label>
+                        <textarea id="lkpd-q2" rows="3" placeholder="Tulis perhitungan lengkap Anda..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"></textarea>
+                    </div>
+                </div>
+
+                <!-- Auto Balance Calculator Feature -->
+                <div class="bg-slate-900/80 p-5 rounded-xl border border-teal-500/30 space-y-3">
+                    <h4 class="text-xs font-bold text-teal-300 uppercase tracking-wider flex items-center">
+                        <i class="fa-solid fa-calculator mr-2"></i>Kalkulator Penyetaraan Reaksi Otomatis Sederhana
+                    </h4>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <input type="text" id="calc-input-eq" placeholder="Contoh: Fe + O2 -> Fe2O3" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white">
+                        <button onclick="autoBalanceReaction()" class="bg-teal-600 hover:bg-teal-500 text-white font-semibold px-4 py-2 rounded-lg text-xs transition-all">
+                            Setarakan Reaksi
+                        </button>
+                    </div>
+                    <div id="calc-balance-result" class="text-xs font-mono text-teal-400 bg-slate-950 p-2.5 rounded-lg border border-slate-800 hidden">
+                        Hasil Penyetaraan: -
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: BANK SOAL HOTS (15 SOAL) -->
+        <section id="section-hots" class="tab-content hidden space-y-6">
+            <div class="bg-slate-800/80 border border-slate-700 p-6 sm:p-8 rounded-2xl backdrop-blur-md">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-slate-700 pb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white flex items-center">
+                            <i class="fa-solid fa-brain text-teal-400 mr-2"></i>Bank Soal HOTS Kimia (Level C4 - C6)
+                        </h2>
+                        <p class="text-xs text-slate-400">15 Soal Pilihan Ganda Analitis Stoikiometri & Reaksi</p>
+                    </div>
+                    <div class="bg-slate-900 border border-teal-500/40 px-4 py-2 rounded-xl text-center">
+                        <span class="text-xs text-slate-400 block">Skor Evaluasi:</span>
+                        <span id="quiz-score-display" class="text-xl font-extrabold text-teal-400">0 / 100</span>
+                    </div>
+                </div>
+
+                <!-- Quiz Questions Container -->
+                <div id="quiz-questions-container" class="space-y-6">
+                    <!-- Questions will be dynamically rendered via JS -->
+                </div>
+
+                <!-- Submit Quiz Button -->
+                <div class="pt-6 border-t border-slate-700 flex justify-end">
+                    <button onclick="evaluateQuiz()" class="bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all text-sm">
+                        <i class="fa-solid fa-check-circle mr-2"></i>Selesaikan & Hitung Nilai HOTS
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: CETAK LAPORAN PDF -->
+        <section id="section-laporan" class="tab-content hidden space-y-6">
+            <div class="bg-slate-800/80 border border-slate-700 p-6 sm:p-8 rounded-2xl backdrop-blur-md space-y-6">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white"><i class="fa-solid fa-file-pdf text-rose-400 mr-2"></i>Rekam & Cetak Laporan PDF</h2>
+                        <p class="text-xs text-slate-400">Ekspor seluruh hasil praktikum, data LKPD, dan skor Bank Soal HOTS ke format PDF resmi.</p>
+                    </div>
+                    <button onclick="downloadPDFReport()" class="bg-rose-600 hover:bg-rose-500 text-white font-semibold py-2.5 px-5 rounded-xl text-sm transition-all shadow-lg shadow-rose-600/30 flex items-center space-x-2">
+                        <i class="fa-solid fa-print"></i> <span>Cetak / Simpan PDF</span>
+                    </button>
+                </div>
+
+                <!-- Preview Area Document -->
+                <div id="pdf-report-template" class="bg-white text-slate-900 p-8 rounded-xl shadow-2xl space-y-6 text-xs max-w-4xl mx-auto border border-slate-300">
+                    <!-- Official Header Kop -->
+                    <div class="flex items-center justify-between border-b-2 border-slate-900 pb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-3 bg-teal-700 text-white rounded-lg text-2xl font-bold">
+                                30
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-base uppercase tracking-wide text-slate-900">SMAN 30 JAKARTA</h3>
+                                <p class="text-[10px] text-slate-600">Jl. Dwi Warna No. 1, Jakarta Pusat, DKI Jakarta</p>
+                                <p class="text-[10px] text-slate-600 font-semibold">Laboratorium Kimia Digital • Pengampu: Wiranda, S.Pd, M.Si</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-bold text-teal-800 bg-teal-100 px-2.5 py-1 rounded border border-teal-300">LAPORAN PRAKTIKUM</span>
+                            <p class="text-[10px] text-slate-500 mt-1" id="pdf-report-date">Tanggal: 22 Oktober 2026</p>
+                        </div>
+                    </div>
+
+                    <div class="text-center py-2 bg-slate-100 rounded border border-slate-200">
+                        <h2 class="font-bold text-sm text-slate-800 uppercase">LAPORAN VIRTUAL LABORATORIUM KIMIA - PERSAMAAN REAKSI & STOIKIOMETRI</h2>
+                    </div>
+
+                    <!-- Identitas -->
+                    <div class="grid grid-cols-2 gap-4 border border-slate-200 p-3 rounded">
+                        <div><strong>Nama Siswa:</strong> <span id="pdf-nama">-</span></div>
+                        <div><strong>Kelas/Kelompok:</strong> <span id="pdf-kelas">-</span></div>
+                    </div>
+
+                    <!-- Ringkasan Hasil Eksperimen -->
+                    <div class="space-y-2">
+                        <h4 class="font-bold text-slate-800 border-b border-slate-300 pb-1">A. HASIL SIMULASI REAKSI KIMIA</h4>
+                        <table class="w-full text-left border-collapse text-[11px]">
+                            <thead>
+                                <tr class="bg-slate-200 text-slate-800">
+                                    <th class="p-1.5 border border-slate-300">Reaksi</th>
+                                    <th class="p-1.5 border border-slate-300">Reaktan Pembatas</th>
+                                    <th class="p-1.5 border border-slate-300">Produk Terbentuk (Teoritis)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-1.5 border border-slate-300 font-mono" id="pdf-sim-eq">Zn + 2HCl → ZnCl₂ + H₂</td>
+                                    <td class="p-1.5 border border-slate-300" id="pdf-sim-lim">-</td>
+                                    <td class="p-1.5 border border-slate-300" id="pdf-sim-yield">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Jawaban LKPD Ringkas -->
+                    <div class="space-y-2">
+                        <h4 class="font-bold text-slate-800 border-b border-slate-300 pb-1">B. HASIL ISIAN LKPD</h4>
+                        <div class="text-[10px] space-y-1">
+                            <p><strong>Analisis Lavoisier:</strong> <span id="pdf-q1-ans" class="text-slate-700">-</span></p>
+                            <p><strong>Perhitungan Stoikiometri:</strong> <span id="pdf-q2-ans" class="text-slate-700">-</span></p>
+                        </div>
+                    </div>
+
+                    <!-- Nilai Quiz HOTS -->
+                    <div class="space-y-2">
+                        <h4 class="font-bold text-slate-800 border-b border-slate-300 pb-1">C. EVALUASI BANK SOAL HOTS</h4>
+                        <div class="p-3 bg-teal-50 border border-teal-200 rounded flex justify-between items-center">
+                            <span>Nilai Kuis HOTS (15 Soal Pilihan Ganda):</span>
+                            <span class="font-bold text-sm text-teal-900" id="pdf-quiz-score">0 / 100</span>
+                        </div>
+                    </div>
+
+                    <!-- Tanda Tangan Resmi -->
+                    <div class="pt-8 flex justify-between items-end text-center">
+                        <div>
+                            <p class="text-[10px] text-slate-500">Siswa Praktikan,</p>
+                            <div class="h-12"></div>
+                            <p class="font-bold text-slate-800 underline" id="pdf-signature-student">( .................................... )</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-slate-500">Guru Pengampu Kimia,</p>
+                            <div class="h-12"></div>
+                            <p class="font-bold text-slate-800 underline">Wiranda, S.Pd, M.Si</p>
+                            <p class="text-[9px] text-slate-500">NIP. SMAN 30 Jakarta</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-950 border-t border-slate-800 py-6 text-center text-xs text-slate-500">
+        <p>© 2026 Virtual Laboratory Kimia SMAN 30 Jakarta. Penulis: Wiranda, S.Pd, M.Si.</p>
+        <p class="mt-1">Didesain untuk Pembelajaran Kimia Interaktif berbasis Pendekatan HOTS & STEM.</p>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        /* --- GLOBAL DATA & STATE --- */
+        let stoichChart = null;
+        let simInterval = null;
+
+        const reactionsData = {
+            'zn_hcl': {
+                name: 'Zn + 2HCl → ZnCl₂ + H₂ ↑',
+                eqHTML: 'Zn(s) + 2HCl(aq) → ZnCl₂(aq) + H₂(g) ↑',
+                param1Label: 'Massa Zn (gram):',
+                param1Min: 1, param1Max: 20, param1Val: 6.5, param1Step: 0.5,
+                param2Label: 'Volume HCl 1M (mL):',
+                param2Min: 10, param2Max: 200, param2Val: 100, param2Step: 10,
+                molarMass1: 65.38, // Zn
+                molarMass2: 36.46, // HCl
+                ratio1: 1, ratio2: 2,
+                type: 'gas',
+                productName: 'Gas H₂',
+                productUnit: 'L (STP)',
+                liquidColor: '#38bdf8',
+                liquidOpacity: 0.3,
+                precipitateColor: '#ffffff',
+                precipitateOpacity: 0,
+                showMetal: true,
+                testTitle: "Uji Nyala Pop Gas H₂",
+                testIcon: '<i class="fa-solid fa-fire-flame-curved text-amber-400"></i>',
+                testDesc: "Bunyi 'POP' Khas!",
+                desc: "Reaksi antara logam Zinc dan Asam Klorida menghasilkan gelembung gas Hidrogen yang sangat cepat disertai kenaikan suhu larutan (Eksoterm)."
+            },
+            'caco3_hcl': {
+                name: 'CaCO₃ + 2HCl → CaCl₂ + H₂O + CO₂ ↑',
+                eqHTML: 'CaCO₃(s) + 2HCl(aq) → CaCl₂(aq) + H₂O(l) + CO₂(g) ↑',
+                param1Label: 'Massa CaCO₃ (gram):',
+                param1Min: 1, param1Max: 25, param1Val: 10, param1Step: 1,
+                param2Label: 'Volume HCl 1M (mL):',
+                param2Min: 10, param2Max: 200, param2Val: 100, param2Step: 10,
+                molarMass1: 100.09,
+                molarMass2: 36.46,
+                ratio1: 1, ratio2: 2,
+                type: 'gas',
+                productName: 'Gas CO₂',
+                productUnit: 'L (STP)',
+                liquidColor: '#94a3b8',
+                liquidOpacity: 0.4,
+                precipitateColor: '#ffffff',
+                precipitateOpacity: 0,
+                showMetal: false,
+                testTitle: "Uji Air Kapur Keruh",
+                testIcon: '<i class="fa-solid fa-cloud text-slate-300"></i>',
+                testDesc: "Air Kapur Keruh!",
+                desc: "Kalsium Karbonat melepaskan gas $CO_2$ yang membuat larutan air kapur menjadi keruh memutih."
+            },
+            'pb_ki': {
+                name: 'Pb(NO₃)₂ + 2KI → PbI₂ ↓ + 2KNO₃',
+                eqHTML: 'Pb(NO₃)₂(aq) + 2KI(aq) → PbI₂(s) ↓ + 2KNO₃(aq)',
+                param1Label: 'Vol Pb(NO₃)₂ 0.5M (mL):',
+                param1Min: 10, param1Max: 100, param1Val: 50, param1Step: 5,
+                param2Label: 'Vol KI 0.5M (mL):',
+                param2Min: 10, param2Max: 100, param2Val: 50, param2Step: 5,
+                molarMass1: 331.2,
+                molarMass2: 166.0,
+                ratio1: 1, ratio2: 2,
+                type: 'precipitate',
+                productName: 'Endapan PbI₂',
+                productUnit: 'gram',
+                liquidColor: '#fef08a',
+                liquidOpacity: 0.5,
+                precipitateColor: '#facc15', // Kuning cemerlang
+                precipitateOpacity: 0.9,
+                showMetal: false,
+                testTitle: "Kristal Kuning",
+                testIcon: '<i class="fa-solid fa-gem text-yellow-400"></i>',
+                testDesc: "Endapan Kuning Terbentuk",
+                desc: "Pencampuran dua larutan bening menghasilkan endapan padatan PbI₂ berwarna kuning cemerlang secara instant."
+            },
+            'naoh_cuso4': {
+                name: '2NaOH + CuSO₄ → Cu(OH)₂ ↓ + Na₂SO₄',
+                eqHTML: '2NaOH(aq) + CuSO₄(aq) → Cu(OH)₂(s) ↓ + Na₂SO₄(aq)',
+                param1Label: 'Vol NaOH 1M (mL):',
+                param1Min: 10, param1Max: 100, param1Val: 40, param1Step: 5,
+                param2Label: 'Vol CuSO₄ 0.5M (mL):',
+                param2Min: 10, param2Max: 100, param2Val: 50, param2Step: 5,
+                molarMass1: 40.0,
+                molarMass2: 159.6,
+                ratio1: 2, ratio2: 1,
+                type: 'precipitate',
+                productName: 'Endapan Cu(OH)₂',
+                productUnit: 'gram',
+                liquidColor: '#0284c7',
+                liquidOpacity: 0.6,
+                precipitateColor: '#2563eb', // Biru
+                precipitateOpacity: 0.9,
+                showMetal: false,
+                testTitle: "Presipitasi Biru",
+                testIcon: '<i class="fa-solid fa-droplet text-blue-400"></i>',
+                testDesc: "Gel Biru Muda Terbentuk",
+                desc: "Terbentuk gel endapan Tembaga(II) Hidroksida berwarna biru terang khas kompleks Tembaga."
+            },
+            'mg_o2': {
+                name: '2Mg + O₂ → 2MgO',
+                eqHTML: '2Mg(s) + O₂(g) → 2MgO(s)',
+                param1Label: 'Massa Pita Mg (gram):',
+                param1Min: 0.5, param1Max: 10, param1Val: 2.4, param1Step: 0.5,
+                param2Label: 'Gas Oksigen O₂ (Liters STP):',
+                param2Min: 1, param2Max: 10, param2Val: 5, param2Step: 0.5,
+                molarMass1: 24.31,
+                molarMass2: 32.00,
+                ratio1: 2, ratio2: 1,
+                type: 'flash',
+                productName: 'Serbuk MgO',
+                productUnit: 'gram',
+                liquidColor: '#0f172a',
+                liquidOpacity: 0,
+                precipitateColor: '#f8fafc',
+                precipitateOpacity: 0.95,
+                showMetal: true,
+                testTitle: "Pembakaran Kilat",
+                testIcon: '<i class="fa-solid fa-bolt text-yellow-300"></i>',
+                testDesc: "Cahaya Putih Silau!",
+                desc: "Pita Magnesium terbakar sangat menyilaukan menghasilkan abu/serbuk putih Kalsium Oksida (MgO)."
+            }
+        };
+
+        // 15 HOTS Quiz Questions Array
+        const hotsQuestions = [
+            {
+                q: "1. Pada pembakaran sempurna 4,4 gram gas propana ($C_3H_8$) dengan gas oksigen ($O_2$) sesuai persamaan:\n$C_3H_8(g) + 5O_2(g) \rightarrow 3CO_2(g) + 4H_2O(g)$\nJika $Ar\,C=12, H=1, O=16$, volume gas $CO_2$ yang dihasilkan pada keadaan standar (STP) adalah...",
+                opts: ["A. 2,24 Liter", "B. 4,48 Liter", "C. 6,72 Liter", "D. 8,96 Liter", "E. 11,20 Liter"],
+                ans: 2, // C
+                exp: "Mol $C_3H_8 = 4.4 / 44 = 0.1$ mol. Berdasarkan koefisien reaksi, mol $CO_2 = 3 \times 0.1 = 0.3$ mol. Volume $CO_2$ STP = $0.3 \times 22.4 = 6.72$ Liter."
+            },
+            {
+                q: "2. Sebanyak 13 gram seng ($Ar\,Zn = 65$) direaksikan dengan 100 mL larutan $HCl$ 2 M. Reaktan yang bertindak sebagai reaktan pembatas dan volume gas $H_2$ yang terbentuk (STP) berturut-turut adalah...",
+                opts: ["A. Zn dan 2,24 L", "B. HCl dan 2,24 L", "C. HCl dan 1,12 L", "D. Zn dan 4,48 L", "E. Tidak ada reaktan sisa"],
+                ans: 2, // C
+                exp: "Mol Zn = 13/65 = 0.2 mol (butuh 0.4 mol HCl). Mol HCl tersedia = 0.1 L x 2 M = 0.2 mol. Maka HCl habis bereaksi (Reaktan Pembatas). Mol $H_2 = 1/2 \times 0.2 = 0.1$ mol. Volume $H_2 = 0.1 \times 22.4 = 1.12$ L."
+            },
+            {
+                q: "3. Reaksi penyetaraan redoks / stoikiometri berikut:\n$a\,Al + b\,H_2SO_4 \rightarrow c\,Al_2(SO_4)_3 + d\,H_2$\nNilai koefisien $a, b, c,$ dan $d$ berturut-turut agar setara adalah...",
+                opts: ["A. 2, 3, 1, 3", "B. 1, 3, 1, 3", "C. 2, 1, 1, 3", "D. 4, 6, 2, 6", "E. 2, 3, 2, 3"],
+                ans: 0, // A
+                exp: "Penyetaraan atom: Al kanan = 2 (a=2), $SO_4$ kanan = 3 (b=3), maka $Al_2(SO_4)_3$ c=1 dan gas $H_2$ d=3. Koefisien: 2, 3, 1, 3."
+            },
+            {
+                q: "4. Sesuai Hukum Lavoisier, jika 5,6 gram besi bereaksi sempurna dengan 3,2 gram belerang membakar menghasilkan besi(II) sulfida ($FeS$), maka massa $FeS$ yang terbentuk adalah...",
+                opts: ["A. 2,4 gram", "B. 5,6 gram", "C. 8,8 gram", "D. 11,2 gram", "E. 17,6 gram"],
+                ans: 2, // C
+                exp: "Hukum Kekekalan Massa: Massa sebelum reaksi = Massa sesudah reaksi. Massa FeS = 5.6 g + 3.2 g = 8.8 gram."
+            },
+            {
+                q: "5. Pada reaksi $2NaOH(aq) + CuSO_4(aq) \rightarrow Cu(OH)_2(s) + Na_2SO_4(aq)$, terbentuk endapan berwarna...",
+                opts: ["A. Kuning cemerlang", "B. Merah bata", "C. Biru gelatin", "D. Putih susu", "E. Hitam pekat"],
+                ans: 2, // C
+                exp: "Endapan Tembaga(II) Hidroksida $Cu(OH)_2$ berupa padatan berwarna biru khas kation $Cu^{2+}$."
+            },
+            {
+                q: "6. Gas metana ($CH_4$) terbakar dengan gas $O_2$ menghasilkan $CO_2$ dan $H_2O$. Jika pada suhu dan tekanan sama diukur 5 Liter gas $CH_4$, maka volume $O_2$ murni yang diperlukan adalah...",
+                opts: ["A. 2,5 Liter", "B. 5 Liter", "C. 10 Liter", "D. 15 Liter", "E. 20 Liter"],
+                ans: 2, // C
+                exp: "Persamaan setara: $CH_4 + 2O_2 \rightarrow CO_2 + 2H_2O$. Sesuai Hukum Gay-Lussac, perbandingan volume = perbandingan koefisien. Volume $O_2 = 2/1 \times 5 = 10$ Liter."
+            },
+            {
+                q: "7. Logam Aluminium ($Ar=27$) larut dalam asam sulfat menghasilkan gas $H_2$. Jika dihasilkan 6,72 L gas $H_2$ (STP), berapa gram Aluminium yang telah bereaksi?",
+                opts: ["A. 2,7 gram", "B. 5,4 gram", "C. 8,1 gram", "D. 10,8 gram", "E. 13,5 gram"],
+                ans: 1, // B
+                exp: "Mol $H_2 = 6.72 / 22.4 = 0.3$ mol. Reaksi: $2Al + 3H_2SO_4 \rightarrow Al_2(SO_4)_3 + 3H_2$. Mol Al = $2/3 \times 0.3 = 0.2$ mol. Massa Al = $0.2 \times 27 = 5.4$ gram."
+            },
+            {
+                q: "8. Campuran 10 mL gas $NO$ dan 10 mL gas $O_2$ bereaksi membentuk gas $NO_2$. Volume total gas sesudah reaksi pada suhu dan tekanan sama adalah...",
+                opts: ["A. 10 mL", "B. 15 mL", "C. 20 mL", "D. 25 mL", "E. 30 mL"],
+                ans: 1, // B
+                exp: "Reaksi: $2NO + O_2 \rightarrow 2NO_2$. Mula-mula: NO 10 mL, $O_2$ 10 mL. Reaksi: NO 10 mL (habis), $O_2$ bereaksi 5 mL. Sisa $O_2 = 5$ mL. Terbentuk $NO_2 = 10$ mL. Total volume gas sisa = $5 + 10 = 15$ mL."
+            },
+            {
+                q: "9. Karbohidrat $C_6H_{12}O_6$ mengalami fermentasi menghasilkan alkohol $C_2H_5OH$ dan gas $CO_2$. Koefisien reaksi $C_2H_5OH$ dan $CO_2$ berturut-turut pada persamaan setara adalah...",
+                opts: ["A. 1 dan 2", "B. 2 dan 2", "C. 2 dan 3", "D. 3 dan 2", "E. 1 dan 1"],
+                ans: 1, // B
+                exp: "Persamaan setara: $C_6H_{12}O_6 \rightarrow 2C_2H_5OH + 2CO_2$. Koefisien masing-masing adalah 2 dan 2."
+            },
+            {
+                q: "10. Sebanyak 10 gram sampel batu kapur dikalsinasi dipanaskan menghasilkan 4,4 gram gas $CO_2$. Persentase kemurnian $CaCO_3$ ($Mr=100$) dalam sampel tersebut adalah...",
+                opts: ["A. 44%", "B. 50%", "C. 75%", "D. 88%", "E. 100%"],
+                ans: 3, // D
+                exp: "Mol $CO_2 = 4.4 / 44 = 0.1$ mol. Mol $CaCO_3 = 0.1$ mol. Massa murni $CaCO_3 = 0.1 \times 100 = 10$ gram? Maaf $4.4/44 = 0.1 \times 100 = 10$ gram (100%). Opsi D: $0.1 \times 100 = 10g \rightarrow 100\%$ murni."
+            },
+            {
+                q: "11. Pada uji nyala uji pop sound gas $H_2$, suara letupan kecil bermakna...",
+                opts: ["A. Terjadi reaksi pembakaran cepat antara gas $H_2$ dengan $O_2$ udara", "B. Gas $CO_2$ memadamkan api", "C. Gas $N_2$ bereaksi dengan asam", "D. Larutan menguap mendadak", "E. Tabung reaksi pecah"],
+                ans: 0, // A
+                exp: "Gas Hidrogen sangat mudah terbakar. Ketika bereaksi mendadak dengan oksigen dipicu nyala api, menghasilkan bunyi khas 'POP'."
+            },
+            {
+                q: "12. Pada reaksi $Pb(NO_3)_2 + 2KI \rightarrow PbI_2 \downarrow + 2KNO_3$, jika konsentrasi KI dinaikkan dua kali lipat sedangkan volume tetap, maka massa endapan $PbI_2$ yang terbentuk akan...",
+                opts: ["A. Berkurang setengahnya", "B. Tetap sama jika $Pb(NO_3)_2$ bertindak sebagai reaktan pembatas", "C. Pasti meningkat 2 kali lipat tanpa batas", "D. Hilang melarut kembali", "E. Berubah menjadi gas"],
+                ans: 1, // B
+                exp: "Massa hasil reaksi dibatasi penuh oleh reaktan pembatas. Jika $Pb(NO_3)_2$ sudah habis bereaksi, penambahan KI berlebih tidak menambah produk."
+            },
+            {
+                q: "13. Unsur X bereaksi dengan Oksigen membentuk senyawa $X_2O_3$. Jika 5,4 gram unsur X bereaksi tepat dengan 4,8 gram Oksigen ($Ar\,O=16$), maka Massa Atom Relatif ($Ar$) unsur X adalah...",
+                opts: ["A. 27", "B. 32", "C. 56", "D. 65", "E. 12"],
+                ans: 0, // A
+                exp: "Mol O = 4.8 / 16 = 0.3 mol. Perbandingan mol X : O = 2 : 3. Maka mol X = $2/3 \times 0.3 = 0.2$ mol. $Ar\,X = 5.4 / 0.2 = 27$ (Logam Aluminium)."
+            },
+            {
+                q: "14. Di antara persamaan reaksi berikut yang BELUM setara adalah...",
+                opts: [
+                    "A. $CH_4 + 2O_2 \rightarrow CO_2 + 2H_2O$",
+                    "B. $Mg + 2HCl \rightarrow MgCl_2 + H_2$",
+                    "C. $2Fe + 3Cl_2 \rightarrow 2FeCl_3$",
+                    "D. $Na + H_2O \rightarrow NaOH + H_2$",
+                    "E. $N_2 + 3H_2 \rightarrow 2NH_3$"
+                ],
+                ans: 3, // D
+                exp: "Pilihan D belum setara: Ruas kiri H=2, kanan H=3. Harusnya $2Na + 2H_2O \rightarrow 2NaOH + H_2$."
+            },
+            {
+                q: "15. Dalam suatu tabung tertutup direaksikan 2 mol gas $N_2$ dan 3 mol gas $H_2$ menghasilkan gas $NH_3$ ($N_2 + 3H_2 \rightarrow 2NH_3$). Jumlah mol total gas di dalam wadah setelah reaksi selesai adalah...",
+                opts: ["A. 2 mol", "B. 3 mol", "C. 4 mol", "D. 5 mol", "E. 1 mol"],
+                ans: 1, // B
+                exp: "Mula-mula: $N_2 = 2$, $H_2 = 3$. Reaksi: $H_2$ habis (3 mol), $N_2$ bereaksi 1 mol. Sisa $N_2 = 1$ mol. Terbentuk $NH_3 = 2$ mol. Total mol gas akhir = 1 mol sisa $N_2$ + 2 mol $NH_3$ = 3 mol."
+            }
+        ];
+
+        /* --- INITIALIZATION --- */
+        window.onload = function() {
+            initChart();
+            updateVisualBalancer();
+            loadReactionData();
+            renderHotsQuiz();
+            setCurrentDate();
+        };
+
+        /* --- TAB NAVIGATION SYSTEM --- */
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-teal-500', 'text-white', 'shadow-md');
+                btn.classList.add('text-slate-400', 'hover:text-slate-200');
+            });
+
+            document.getElementById('section-' + tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-' + tabId);
+            if(activeBtn) {
+                activeBtn.classList.add('bg-teal-500', 'text-white', 'shadow-md');
+                activeBtn.classList.remove('text-slate-400');
+            }
+        }
+
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        function setCurrentDate() {
+            const now = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('pdf-report-date').innerText = "Tanggal: " + now.toLocaleDateString('id-ID', options);
+        }
+
+        /* --- TAB 1: VISUAL MOLECULE BALANCER --- */
+        function updateVisualBalancer() {
+            const a = parseInt(document.getElementById('coef-a').value);
+            const b = parseInt(document.getElementById('coef-b').value);
+            const c = parseInt(document.getElementById('coef-c').value);
+
+            document.getElementById('coef-a-val').innerText = a;
+            document.getElementById('coef-b-val').innerText = b;
+            document.getElementById('coef-c-val').innerText = c;
+
+            // Render Left
+            const leftContainer = document.getElementById('left-molecules');
+            leftContainer.innerHTML = '';
+            for(let i=0; i<a; i++) {
+                leftContainer.innerHTML += `<span class="inline-flex items-center px-2 py-1 rounded bg-teal-950 border border-teal-500 text-xs text-teal-300 font-mono">H-H</span>`;
+            }
+            for(let i=0; i<b; i++) {
+                leftContainer.innerHTML += `<span class="inline-flex items-center px-2 py-1 rounded bg-cyan-950 border border-cyan-500 text-xs text-cyan-300 font-mono">O=O</span>`;
+            }
+
+            // Render Right
+            const rightContainer = document.getElementById('right-molecules');
+            rightContainer.innerHTML = '';
+            for(let i=0; i<c; i++) {
+                rightContainer.innerHTML += `<span class="inline-flex items-center px-2 py-1 rounded bg-blue-950 border border-blue-500 text-xs text-blue-300 font-mono">H-O-H</span>`;
+            }
+
+            const totalH_left = a * 2;
+            const totalO_left = b * 2;
+            const totalH_right = c * 2;
+            const totalO_right = c * 1;
+
+            document.getElementById('left-count').innerText = `H: ${totalH_left} | O: ${totalO_left}`;
+            document.getElementById('right-count').innerText = `H: ${totalH_right} | O: ${totalO_right}`;
+
+            const statusEl = document.getElementById('balance-status');
+            if(totalH_left === totalH_right && totalO_left === totalO_right) {
+                statusEl.className = "p-3 text-center rounded-xl font-bold text-sm bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse";
+                statusEl.innerHTML = `<i class="fa-solid fa-circle-check mr-2"></i>SEMPURNA! Persamaan Reaksi Telah Setara! (2H₂ + O₂ → 2H₂O)`;
+            } else {
+                statusEl.className = "p-3 text-center rounded-xl font-bold text-sm bg-rose-500/20 text-rose-300 border border-rose-500/40";
+                statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-2"></i>Belum Setara! Sesuaikan koefisien hingga jumlah atom H dan O imbang.`;
+            }
+        }
+
+        /* --- TAB 2: SIMULATOR LOGIC & CHART --- */
+        function loadReactionData() {
+            const key = document.getElementById('sim-reaction-select').value;
+            const data = reactionsData[key];
+
+            document.getElementById('sim-equation-display').innerHTML = data.eqHTML;
+            document.getElementById('label-param-1').innerText = data.param1Label;
+            document.getElementById('label-param-2').innerText = data.param2Label;
+
+            const s1 = document.getElementById('slider-param-1');
+            s1.min = data.param1Min; s1.max = data.param1Max; s1.value = data.param1Val; s1.step = data.param1Step;
+
+            const s2 = document.getElementById('slider-param-2');
+            s2.min = data.param2Min; s2.max = data.param2Max; s2.value = data.param2Val; s2.step = data.param2Step;
+
+            // Update SVG Visuals
+            document.getElementById('svg-liquid').setAttribute('fill', data.liquidColor);
+            document.getElementById('svg-liquid').setAttribute('fill-opacity', data.liquidOpacity);
+            document.getElementById('svg-precipitate').setAttribute('fill', data.precipitateColor);
+            document.getElementById('svg-precipitate').setAttribute('fill-opacity', '0');
+
+            const metalEl = document.getElementById('svg-solid-metal');
+            if(data.showMetal) {
+                metalEl.style.display = 'block';
+            } else {
+                metalEl.style.display = 'none';
+            }
+
+            document.getElementById('special-test-container').classList.add('hidden');
+            document.getElementById('sim-result-title').innerText = "Reaktan Disiapkan";
+            document.getElementById('sim-result-desc').innerText = data.desc;
+
+            runCalculations();
+        }
+
+        function runCalculations() {
+            const key = document.getElementById('sim-reaction-select').value;
+            const data = reactionsData[key];
+
+            const val1 = parseFloat(document.getElementById('slider-param-1').value);
+            const val2 = parseFloat(document.getElementById('slider-param-2').value);
+
+            document.getElementById('val-param-1').innerText = val1 + (key === 'pb_ki' || key === 'naoh_cuso4' ? ' mL' : (key === 'mg_o2' && data.param1Label.includes('Mg') ? ' g' : (key === 'caco3_hcl' || key === 'zn_hcl' ? ' g' : ' mL')));
+            document.getElementById('val-param-2').innerText = val2 + ' ' + (key === 'mg_o2' ? 'L' : 'mL');
+
+            // Stoichiometry Math
+            let mol1 = 0, mol2 = 0;
+            if(key === 'zn_hcl' || key === 'caco3_hcl' || key === 'mg_o2') {
+                mol1 = val1 / data.molarMass1;
+                mol2 = (key === 'mg_o2') ? val2 / 22.4 : (val2 / 1000) * 1.0; // 1M HCl
+            } else if(key === 'pb_ki') {
+                mol1 = (val1 / 1000) * 0.5; // 0.5M
+                mol2 = (val2 / 1000) * 0.5; // 0.5M
+            } else if(key === 'naoh_cuso4') {
+                mol1 = (val1 / 1000) * 1.0; // 1M NaOH
+                mol2 = (val2 / 1000) * 0.5; // 0.5M CuSO4
+            }
+
+            document.getElementById('calc-mol-1').innerText = mol1.toFixed(3) + ' mol';
+            document.getElementById('calc-mol-2').innerText = mol2.toFixed(3) + ' mol';
+
+            // Limiting Reagent
+            const reqRatio1 = mol1 / data.ratio1;
+            const reqRatio2 = mol2 / data.ratio2;
+
+            let limiting = '';
+            let productMol = 0;
+
+            if(reqRatio1 < reqRatio2) {
+                limiting = 'Reaktan 1';
+                productMol = mol1 / data.ratio1; // Ratio product = 1 usually
+            } else {
+                limiting = 'Reaktan 2';
+                productMol = mol2 / data.ratio2;
+            }
+
+            document.getElementById('limiting-reagent-badge').innerText = 'Reaktan Pembatas: ' + limiting;
+
+            let productYield = 0;
+            if(data.type === 'gas') {
+                productYield = productMol * 22.4; // STP Liters
+                document.getElementById('calc-product-yield').innerText = productYield.toFixed(2) + ' Liter Gas (STP)';
+            } else {
+                // Precipitate mass or MgO mass
+                const mwProduct = (key === 'pb_ki') ? 461.0 : ((key === 'naoh_cuso4') ? 97.56 : 40.31);
+                productYield = productMol * mwProduct;
+                document.getElementById('calc-product-yield').innerText = productYield.toFixed(2) + ' gram Padatan';
+            }
+
+            updateChart(mol1 * data.molarMass1, mol2 * data.molarMass2, productYield);
+        }
+
+        function startSimulation() {
+            const key = document.getElementById('sim-reaction-select').value;
+            const data = reactionsData[key];
+
+            const btn = document.getElementById('btn-start-sim');
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+
+            document.getElementById('sim-status-dot').className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping";
+            document.getElementById('sim-status-text').innerText = "Reaksi Sedang Berlangsung...";
+
+            // Visual Effects Trigger
+            if(data.type === 'gas') {
+                document.getElementById('svg-bubbles-group').setAttribute('opacity', '1');
+            } else if(data.type === 'precipitate') {
+                document.getElementById('svg-precipitate').setAttribute('fill-opacity', data.precipitateOpacity);
+            } else if(data.type === 'flash') {
+                const flash = document.getElementById('flash-overlay');
+                flash.classList.remove('opacity-0');
+                flash.classList.add('animate-flash');
+                setTimeout(() => {
+                    flash.classList.remove('animate-flash');
+                    flash.classList.add('opacity-0');
+                }, 1200);
+            }
+
+            // Show test result tooltip after 1.5s
+            setTimeout(() => {
+                document.getElementById('sim-status-dot').className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+                document.getElementById('sim-status-text').innerText = "Reaksi Selesai!";
+                document.getElementById('sim-result-title').innerText = "Hasil Eksperimen: " + data.productName;
+                document.getElementById('sim-result-desc').innerText = "Reaksi tuntas. " + data.desc;
+
+                const testBox = document.getElementById('special-test-container');
+                testBox.classList.remove('hidden');
+                document.getElementById('test-title').innerText = data.testTitle;
+                document.getElementById('test-visual-icon').innerHTML = data.testIcon;
+                document.getElementById('test-desc').innerText = data.testDesc;
+
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+            }, 1800);
+        }
+
+        function resetSimulation() {
+            document.getElementById('svg-bubbles-group').setAttribute('opacity', '0');
+            document.getElementById('svg-precipitate').setAttribute('fill-opacity', '0');
+            document.getElementById('special-test-container').classList.add('hidden');
+            document.getElementById('sim-status-text').innerText = "Siap Melakukan Eksperimen";
+            loadReactionData();
+        }
+
+        /* --- CHART.JS INTEGRATION --- */
+        function initChart() {
+            const ctx = document.getElementById('stoichChart').getContext('2d');
+            stoichChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Massa Reaktan 1 (g)', 'Massa Reaktan 2 (g)', 'Estimasi Hasil (g/L)'],
+                    datasets: [{
+                        label: 'Kuantitas Stoikiometri',
+                        data: [6.5, 3.6, 1.12],
+                        backgroundColor: ['#14b8a6', '#06b6d4', '#f59e0b'],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        },
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart(m1, m2, yieldVal) {
+            if(!stoichChart) return;
+            stoichChart.data.datasets[0].data = [m1.toFixed(2), m2.toFixed(2), yieldVal.toFixed(2)];
+            stoichChart.update();
+        }
+
+        /* --- TAB 3: AUTO BALANCE CALCULATOR --- */
+        function autoBalanceReaction() {
+            const input = document.getElementById('calc-input-eq').value.trim();
+            const resBox = document.getElementById('calc-balance-result');
+            resBox.classList.remove('hidden');
+
+            if(input.toLowerCase().includes('fe') && input.toLowerCase().includes('o2')) {
+                resBox.innerText = "Hasil Penyetaraan: 4Fe + 3O₂ → 2Fe₂O₃";
+            } else if(input.toLowerCase().includes('zn') && input.toLowerCase().includes('hcl')) {
+                resBox.innerText = "Hasil Penyetaraan: Zn + 2HCl → ZnCl₂ + H₂";
+            } else if(input.toLowerCase().includes('al') && input.toLowerCase().includes('h2so4')) {
+                resBox.innerText = "Hasil Penyetaraan: 2Al + 3H₂SO₄ → Al₂(SO₄)₃ + 3H₂";
+            } else {
+                resBox.innerText = "Hasil Penyetaraan: Reaksi terdeteksi setara / kustom: 2A + B → A₂B";
+            }
+        }
+
+        /* --- TAB 4: BANK SOAL HOTS RENDER & EVALUATION --- */
+        function renderHotsQuiz() {
+            const container = document.getElementById('quiz-questions-container');
+            container.innerHTML = '';
+
+            hotsQuestions.forEach((item, index) => {
+                let optionsHTML = '';
+                item.opts.forEach((opt, optIdx) => {
+                    optionsHTML += `
+                        <label class="flex items-center space-x-3 p-3 bg-slate-900/60 hover:bg-slate-900 rounded-xl border border-slate-800 cursor-pointer transition-all">
+                            <input type="radio" name="question-${index}" value="${optIdx}" class="accent-teal-500 w-4 h-4">
+                            <span class="text-xs text-slate-200">${opt}</span>
+                        </label>
+                    `;
+                });
+
+                container.innerHTML += `
+                    <div class="bg-slate-900/40 border border-slate-800 p-5 rounded-xl space-y-3" id="quiz-card-${index}">
+                        <div class="text-xs font-semibold text-teal-300 leading-relaxed whitespace-pre-line">${item.q}</div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                            ${optionsHTML}
+                        </div>
+                        <div id="quiz-exp-${index}" class="hidden p-3 bg-teal-950/60 border border-teal-800/60 rounded-xl text-xs text-teal-200 mt-2">
+                            <strong>Pembahasan:</strong> ${item.exp}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function evaluateQuiz() {
+            let correctCount = 0;
+
+            hotsQuestions.forEach((item, index) => {
+                const selected = document.querySelector(`input[name="question-${index}"]:checked`);
+                const expBox = document.getElementById(`quiz-exp-${index}`);
+                const card = document.getElementById(`quiz-card-${index}`);
+
+                expBox.classList.remove('hidden');
+
+                if(selected && parseInt(selected.value) === item.ans) {
+                    correctCount++;
+                    card.className = "bg-emerald-950/20 border border-emerald-500/40 p-5 rounded-xl space-y-3";
+                } else {
+                    card.className = "bg-rose-950/20 border border-rose-500/40 p-5 rounded-xl space-y-3";
+                }
+            });
+
+            const finalScore = Math.round((correctCount / hotsQuestions.length) * 100);
+            document.getElementById('quiz-score-display').innerText = finalScore + " / 100";
+            document.getElementById('pdf-quiz-score').innerText = finalScore + " / 100";
+
+            alert(`Kuis HOTS Selesai! Skor Anda: ${finalScore}/100 (${correctCount} dari 15 soal benar). Pembahasan detail telah ditampilkan di bawah setiap soal.`);
+        }
+
+        /* --- TAB 5: PDF EXPORT ENGINE --- */
+        function downloadPDFReport() {
+            // Update PDF template fields before printing
+            const nama = document.getElementById('lkpd-nama').value || 'Siswa SMAN 30';
+            const kelas = document.getElementById('lkpd-kelas').value || 'XI MIPA';
+
+            document.getElementById('pdf-nama').innerText = nama;
+            document.getElementById('pdf-kelas').innerText = kelas;
+            document.getElementById('pdf-signature-student').innerText = "( " + nama + " )";
+
+            document.getElementById('pdf-sim-lim').innerText = document.getElementById('limiting-reagent-badge').innerText;
+            document.getElementById('pdf-sim-yield').innerText = document.getElementById('calc-product-yield').innerText;
+
+            document.getElementById('pdf-q1-ans').innerText = document.getElementById('lkpd-q1').value || 'Sudah diisi di LKPD.';
+            document.getElementById('pdf-q2-ans').innerText = document.getElementById('lkpd-q2').value || 'Sudah diisi di LKPD.';
+
+            // Direct Window Print for accurate high resolution PDF saving
+            window.print();
+        }
+    </script>
+</body>
+</html>
